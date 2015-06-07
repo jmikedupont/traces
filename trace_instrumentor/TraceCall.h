@@ -15,8 +15,8 @@ Copyright 2012 Yotam Rubin <yotamrubin@gmail.com>
    limitations under the License.
 ***/
 
-#include "clang/Rewrite/ASTConsumers.h"
-#include "clang/Rewrite/Rewriter.h"
+#include "clang/Rewrite/Frontend/ASTConsumers.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/DeclVisitor.h"
@@ -48,7 +48,7 @@ class TraceCall;
 class TraceParam {
 public:
     llvm::raw_ostream &Out;
-    DiagnosticsEngine &Diags;
+    DiagnosticsEngine * Diags;
     ASTContext &ast;
     Rewriter *Rewrite;
     std::set<const Type *> &referencedTypes;
@@ -57,13 +57,27 @@ public:
     unsigned NonInlineTraceRepresentDiag;
     unsigned MultipleReprCallsDiag;
     unsigned EmptyLiteralStringDiag;
-TraceParam(llvm::raw_ostream &out, DiagnosticsEngine &_Diags, ASTContext &_ast, Rewriter *rewriter, std::set<const Type *> &_referencedTypes, std::set<TraceCall *> &global_traces): Out(out), Diags(_Diags), ast(_ast), Rewrite(rewriter), referencedTypes(_referencedTypes), globalTraces(global_traces), type_name("0"), trace_call(NULL) {
+TraceParam(llvm::raw_ostream &out,
+           DiagnosticsEngine *_Diags,
+           ASTContext &_ast,
+           Rewriter *rewriter,
+           std::set<const Type *> &_referencedTypes,
+           std::set<TraceCall *> &global_traces
+           ): Out(out),
+      Diags(_Diags),
+      ast(_ast),
+      Rewrite(rewriter),
+      referencedTypes(_referencedTypes),
+      globalTraces(global_traces),
+      type_name("0"),
+      trace_call(NULL)
+        {
         clear();
-        NonInlineTraceRepresentDiag = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        NonInlineTraceRepresentDiag = Diags->getCustomDiagID(DiagnosticsEngine::Error,
                                                          "non inline __repr__ may isn't supported");
-        MultipleReprCallsDiag = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        MultipleReprCallsDiag = Diags->getCustomDiagID(DiagnosticsEngine::Error,
                                                       "a __repr__ function may have only a single call to REPR() (showing last call to REPR)");
-        EmptyLiteralStringDiag = Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+        EmptyLiteralStringDiag = Diags->getCustomDiagID(DiagnosticsEngine::Warning,
                                                       "Empty literal string in trace has no effect");
 
     }
@@ -93,7 +107,7 @@ TraceParam(llvm::raw_ostream &out, DiagnosticsEngine &_Diags, ASTContext &_ast, 
         size_expression  = source.size_expression;
         size             = source.size;
         trace_call       = source.trace_call;
-        Diags            = source.Diags;
+        //TODO:Diags            = source.Diags;
         
         type_name = type_name;
         is_pointer = is_pointer;
@@ -225,8 +239,20 @@ private:
 
 class TraceCall {
 public:
-TraceCall(llvm::raw_ostream &out, DiagnosticsEngine &_Diags, ASTContext &_ast, Rewriter *rewriter, std::set<const Type *> &referenced_types, std::set<TraceCall *> &global_traces) : method_generated(false), trace_call_name("tracelog"), ast(_ast), Diags(_Diags), Out(out), Rewrite(rewriter), referencedTypes(referenced_types), globalTraces(global_traces){
-        UnknownTraceParamDiag = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+TraceCall(llvm::raw_ostream &out,
+          DiagnosticsEngine * _Diags,
+          ASTContext &_ast,
+          Rewriter *rewriter,
+          std::set<const Type *> &referenced_types,
+          std::set<TraceCall *> &global_traces) : method_generated(false),
+    trace_call_name("tracelog"),
+    ast(_ast),
+    Diags(_Diags),
+    Out(out),
+    Rewrite(rewriter),
+    referencedTypes(referenced_types),
+    globalTraces(global_traces){
+        UnknownTraceParamDiag = Diags->getCustomDiagID(DiagnosticsEngine::Error,
                                                       "Unsupported trace parameter type");
     }
 
@@ -244,7 +270,7 @@ TraceCall(llvm::raw_ostream &out, DiagnosticsEngine &_Diags, ASTContext &_ast, R
     
 private:
     ASTContext &ast;
-    DiagnosticsEngine &Diags;
+    DiagnosticsEngine * Diags;
     llvm::raw_ostream &Out;
     const CallExpr *call_expr;
     std::vector<TraceParam> args;

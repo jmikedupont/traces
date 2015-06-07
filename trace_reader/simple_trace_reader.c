@@ -10,8 +10,29 @@
 #include "array_length.h"
 
 typedef char trace_filename_t[0x100];
+
 CREATE_LIST_PROTOTYPE(FilenameList, trace_filename_t)
-CREATE_LIST_IMPLEMENTATION(FilenameList, trace_filename_t)
+
+//CREATE_LIST_IMPLEMENTATION(FilenameList, trace_filename_t)
+int FilenameList__add_element(FilenameList *self, trace_filename_t *element) {
+  if ((20) == FilenameList__element_count(self)) { return -1; }
+  memcpy(&self->elements[self->element_count], element, sizeof(*element));
+  self->element_count++; return 0;
+}
+
+int FilenameList__element_count(FilenameList *self) {
+  int rc; rc = self->element_count; return rc; }
+
+int FilenameList__get_element(FilenameList *self, int __index, trace_filename_t *output_element) {
+  int rc = 0;
+  if (__index >= self->element_count) {
+    memset(output_element, 0, sizeof(*output_element));
+    rc = -1;
+    goto Exit;
+  }
+  memcpy(output_element, &self->elements[__index], sizeof(*output_element));
+ Exit: return rc;
+}
 
 enum op_type_e {
     OP_TYPE_INVALID,
@@ -195,10 +216,6 @@ static int parse_command_line(struct trace_reader_conf *conf, int argc, char **a
     return 0;
 }
 
-void read_event_handler(struct trace_parser  __attribute__((unused)) *parser, enum trace_parser_event_e  __attribute__((unused)) event, void  __attribute__((unused)) *event_data, void  __attribute__((unused)) *arg)
-{
-    
-}
 
 static void set_parser_filter(struct trace_reader_conf *conf, trace_parser_t *parser)
 {
@@ -257,6 +274,11 @@ static void set_parser_params(struct trace_reader_conf *conf, trace_parser_t *pa
     } else {
         TRACE_PARSER__set_always_hex(parser, 0);
     }
+}
+
+static void read_event_handler(struct trace_parser  __attribute__((unused)) *parser, enum trace_parser_event_e  __attribute__((unused)) event, void  __attribute__((unused)) *event_data, void  __attribute__((unused)) *arg)
+{
+    
 }
 
 static int dump_all_files(struct trace_reader_conf *conf)

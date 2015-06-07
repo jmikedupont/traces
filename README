@@ -1,4 +1,17 @@
 Traces is an API tracing framework for Linux C/C++ applications.
+
+Installation
+------------
+
+Requirements :
+
+* gcc
+* clang
+* python-ctypeslib for  h2xml.py 
+
+
+History
+-------
 Is is written by Yotam Rubin <yotamrubin@gmail.com> and sponsored by infinidat.
 Traces is a reimplementation of similar proprietary systems implemented by Liran Zvibel, Dan Aloni and others.
 

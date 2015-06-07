@@ -1,0 +1,2 @@
+bin_PROGRAMS = interactive_reader
+interactive_reader_SOURCES=

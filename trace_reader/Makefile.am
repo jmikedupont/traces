@@ -1,0 +1,2 @@
+bin_PROGRAMS = tracereader
+tracereader_SOURCES=simple_trace_reader.c

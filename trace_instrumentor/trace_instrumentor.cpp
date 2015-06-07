@@ -19,8 +19,8 @@ Copyright 2012 Yotam Rubin <yotamrubin@gmail.com>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "clang/Rewrite/ASTConsumers.h"
-#include "clang/Rewrite/Rewriter.h"
+#include "clang/Rewrite/Frontend/ASTConsumers.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/DeclVisitor.h"
@@ -758,7 +758,7 @@ bool TraceParam::parseClassTypeParam(const Expr *expr)
          ++method) {
         if (method->getNameAsString().compare("_trace_represent") == 0) {
             if (!method->hasInlineBody()) {
-                Diags.Report(ast.getFullLoc(method->getLocStart()), NonInlineTraceRepresentDiag) << method->getSourceRange();
+                Diags->Report(ast.getFullLoc(method->getLocStart()), NonInlineTraceRepresentDiag) << method->getSourceRange();
                 return false;
             }
 
@@ -779,7 +779,7 @@ bool TraceParam::parseClassTypeParam(const Expr *expr)
     }
 
     if (call_count > 1) {
-        Diags.Report(ast.getFullLoc(call_expr->getLocStart()), MultipleReprCallsDiag) << call_expr->getSourceRange();
+        Diags->Report(ast.getFullLoc(call_expr->getLocStart()), MultipleReprCallsDiag) << call_expr->getSourceRange();
     }
     
     TraceCall *_trace_call = new TraceCall(Out, Diags, ast, Rewrite, referencedTypes, globalTraces);
@@ -894,7 +894,7 @@ bool TraceParam::parseStringParam(const Expr *expr)
             const_str = literalString;
             return true;
         } else {
-            Diags.Report(ast.getFullLoc(stripped_expr->getLocStart()), EmptyLiteralStringDiag) << stripped_expr->getSourceRange();
+            Diags->Report(ast.getFullLoc(stripped_expr->getLocStart()), EmptyLiteralStringDiag) << stripped_expr->getSourceRange();
             return false;
         }
     }
@@ -912,7 +912,7 @@ bool TraceParam::parseStringParam(const Expr *expr)
 
 void TraceCall::unknownTraceParam(const Expr *trace_param)
 {
-    Diags.Report(ast.getFullLoc(trace_param->getLocStart()), UnknownTraceParamDiag) << trace_param->getSourceRange();
+    Diags->Report(ast.getFullLoc(trace_param->getLocStart()), UnknownTraceParamDiag) << trace_param->getSourceRange();
 }
 
 static std::string getCallExprFunctionName(const CallExpr *CE)
@@ -1067,14 +1067,14 @@ static bool shouldInstrumentFunctionDecl(const FunctionDecl *D, bool whitelistEx
 class DeclIterator : public DeclVisitor<DeclIterator> {
 public:
     llvm::raw_ostream &Out;
-    DiagnosticsEngine &Diags;
+    DiagnosticsEngine *Diags;
     ASTContext &ast;
     Rewriter *Rewrite;
     SourceManager *SM;
     LangOptions langOpts;
     bool whitelistExceptions;
 
-    DeclIterator(llvm::raw_ostream& xOut, DiagnosticsEngine &_Diags, ASTContext &xAst, Rewriter *rewriter, SourceManager *sm, const LangOptions &_langOpts, std::set<const Type *> &referenced_types, std::set<TraceCall *> &global_traces) : Out(xOut), Diags(_Diags), ast(xAst), Rewrite(rewriter), SM(sm), langOpts(_langOpts), whitelistExceptions(false), referencedTypes(referenced_types), globalTraces(global_traces)  {};
+    DeclIterator(llvm::raw_ostream& xOut, DiagnosticsEngine *_Diags, ASTContext &xAst, Rewriter *rewriter, SourceManager *sm, const LangOptions &_langOpts, std::set<const Type *> &referenced_types, std::set<TraceCall *> &global_traces) : Out(xOut), Diags(_Diags), ast(xAst), Rewrite(rewriter), SM(sm), langOpts(_langOpts), whitelistExceptions(false), referencedTypes(referenced_types), globalTraces(global_traces)  {};
     void VisitDeclContext(DeclContext *DC, bool Indent = true);
     void VisitTranslationUnitDecl(TranslationUnitDecl *D);
     void VisitTypedefDecl(TypedefDecl *D);
@@ -1107,7 +1107,7 @@ private:
 class StmtIterator : public StmtVisitor<StmtIterator> {
 public:
     llvm::raw_ostream &Out;
-    DiagnosticsEngine &Diags;
+    DiagnosticsEngine *Diags;
     ASTContext &ast;
     Rewriter *Rewrite;
     SourceManager *SM;
@@ -1115,7 +1115,7 @@ public:
     Decl *D;
     bool whitelistExceptions;
 
-    StmtIterator(llvm::raw_ostream& xOut, DiagnosticsEngine &_Diags, ASTContext &xAst, Rewriter *rewriter, SourceManager *sm, const LangOptions &_langOpts, Decl *_D, bool _whitelistExceptions, std::set<const Type *>&referenced_types, std::set<TraceCall *> &global_traces) : Out(xOut), Diags(_Diags), ast(xAst), Rewrite(rewriter), SM(sm), langOpts(_langOpts), D(_D), whitelistExceptions(_whitelistExceptions), referencedTypes(referenced_types), globalTraces(global_traces)  {};
+    StmtIterator(llvm::raw_ostream& xOut, DiagnosticsEngine *_Diags, ASTContext &xAst, Rewriter *rewriter, SourceManager *sm, const LangOptions &_langOpts, Decl *_D, bool _whitelistExceptions, std::set<const Type *>&referenced_types, std::set<TraceCall *> &global_traces) : Out(xOut), Diags(_Diags), ast(xAst), Rewrite(rewriter), SM(sm), langOpts(_langOpts), D(_D), whitelistExceptions(_whitelistExceptions), referencedTypes(referenced_types), globalTraces(global_traces)  {};
 
 #define STMT(Node, Base) void Visit##Node(Node *S);
 #include <clang/AST/StmtNodes.inc>
@@ -1218,7 +1218,7 @@ void DeclIterator::VisitFunctionDecl(FunctionDecl *D) {
     }
     
     hasReturnStmts(stmt, has_returns);
-    if (!has_returns || D->getResultType()->isVoidType()) {
+    if (!has_returns || D->getCallResultType()->isVoidType()) {
         SourceLocation endLocation = stmt->getLocEnd();
         TraceParam trace_param(Out, Diags, ast, Rewrite, referencedTypes, globalTraces);
         TraceParam function_name_param(Out, Diags, ast, Rewrite, referencedTypes, globalTraces);
@@ -1487,9 +1487,10 @@ void StmtIterator::VisitObjCDictionaryLiteral(clang::ObjCDictionaryLiteral *S) {
     VisitStmt(S);
 }
 
-void StmtIterator::VisitObjCNumericLiteral(clang::ObjCNumericLiteral *S) {
-    VisitStmt(S);
-}
+  //void StmtIterator::VisitObjCNumericLiteral(clang::ObjCNumericLiteral *S) {
+  //    VisitStmt(S);
+  //}
+  //TODO check :bool VisitObjCBoxedExpr(ObjCBoxedExpr *E) 
 
 void StmtIterator::VisitLambdaExpr(clang::LambdaExpr *S) {
     VisitStmt(S);
@@ -1656,19 +1657,22 @@ expand:
 
 void StmtIterator::VisitAsmStmt(AsmStmt *S)
 {
-
+  GCCAsmStmt * GS = (GCCAsmStmt*) S;
     VisitStmt(S);
-    VisitStringLiteral(S->getAsmString());
+    VisitStringLiteral(GS->getAsmString());
     for (unsigned I = 0, N = S->getNumOutputs(); I != N; ++I)
     {
-        VisitStringLiteral(S->getOutputConstraintLiteral(I));
+        VisitStringLiteral(GS->getOutputConstraintLiteral(I));
     }
     for (unsigned I = 0, N = S->getNumInputs(); I != N; ++I)
     {
-        VisitStringLiteral(S->getInputConstraintLiteral(I));
+        VisitStringLiteral(GS->getInputConstraintLiteral(I));
     }
-    for (unsigned I = 0, N = S->getNumClobbers(); I != N; ++I)
-        VisitStringLiteral(S->getClobber(I));
+    // TODO : for (unsigned I = 0, N = S->getNumClobbers(); I != N; ++I)
+    //   {
+    //     clang::StringLiteral l (S->getClobber(I));
+    //     VisitStringLiteral(l);
+    //   }
 }
 
 void StmtIterator::VisitCXXCatchStmt(CXXCatchStmt *S)
@@ -2062,20 +2066,21 @@ void StmtIterator::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *S)
     VisitExpr(S);
 }
 
-void StmtIterator::VisitCXXTypeidExpr(CXXTypeidExpr *S)
-{
-
-    VisitExpr(S);
-    if (S->isTypeOperand())
-        VisitType(S->getTypeOperand());
-}
+// void StmtIterator::VisitCXXTypeidExpr(CXXTypeidExpr *S)
+// {
+//   //ASTContext &Context 
+//     VisitExpr(S);
+//     if (S->isTypeOperand())
+//         VisitType(S->getTypeOperand());
+// }
 
 void StmtIterator::VisitCXXUuidofExpr(CXXUuidofExpr *S)
 {
 
     VisitExpr(S);
-    if (S->isTypeOperand())
-        VisitType(S->getTypeOperand());
+    // TODO :
+    //if (S->isTypeOperand())
+      //VisitType(S->getTypeOperand());
 }
 
 void StmtIterator::VisitCXXThisExpr(CXXThisExpr *S)
@@ -2172,20 +2177,18 @@ StmtIterator::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *S)
     VisitOverloadExpr(S);
 }
 
-void StmtIterator::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *S)
-{
+// void StmtIterator::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *S)
+// {
+//     VisitExpr(S);
+//     VisitType(S->getQueriedType());
+// }
 
-    VisitExpr(S);
-    VisitType(S->getQueriedType());
-}
-
-void StmtIterator::VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *S)
-{
-
-    VisitExpr(S);
-    VisitType(S->getLhsType());
-    VisitType(S->getRhsType());
-}
+// void StmtIterator::VisitBinaryTypeTraitExpr(xBinaryTypeTraitExpr *S)
+// {
+//     VisitExpr(S);
+//     VisitType(S->getLhsType());
+//     VisitType(S->getRhsType());
+// }
 
 void
 StmtIterator::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *S)
@@ -2411,7 +2414,7 @@ void StmtIterator::VisitTemplateArgument(const TemplateArgument &Arg)
 class PreCompilationLogsConsumer : public ASTConsumer {
 public:
     llvm::raw_ostream& Out;
-    DiagnosticsEngine &Diags;
+    DiagnosticsEngine *Diags;
     raw_ostream *OutFile;
     FileID MainFileID;
     SourceManager *SM;
@@ -2578,7 +2581,7 @@ private:
 };
 
 PreCompilationLogsConsumer::PreCompilationLogsConsumer(StringRef inFile, raw_ostream *out, CompilerInstance &CI)
-    : Out(llvm::errs()), Diags(CI.getDiagnostics()), OutFile(out), InFileName(inFile), compilerInstance(&CI)
+    : Out(llvm::errs()), Diags(&CI.getDiagnostics()), OutFile(out), InFileName(inFile), compilerInstance(&CI)
 {
 }
 
