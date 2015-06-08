@@ -1,5 +1,7 @@
 AC_INIT([traces], [1.0])
 AM_INIT_AUTOMAKE()
+
+AC_CONFIG_HEADERS([config.h:config.hin])     
 AC_PROG_CC
 AC_PROG_CXX
 LT_INIT
