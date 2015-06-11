@@ -17,14 +17,21 @@
 import sys
 import os
 import re
-import subprocess
+import subprocess32
 
 from ldwrap import main as ldmodwrap_main
 plugin_path = os.getenv('TRACE_INSTRUMENTOR', os.path.join(os.path.dirname(sys.argv[0]), "trace_instrumentor/trace_instrumentor.so"))
 clang_path = os.getenv('TRACE_CLANG_PATH', "clang")
 
 def spawn(args):
-    return os.spawnvp(os.P_WAIT, args[0], args)
+    print "going to spawn", " ".join(args)
+    p = subprocess32.Popen(args)
+    (stdoutdata, stderrdata) = p.communicate()
+    print (stdoutdata, stderrdata)
+    
+    return p.wait()
+#os.spawnvp(os.P_WAIT, args[0], args)
+
 
 class Error(Exception):
     pass
@@ -39,8 +46,8 @@ def translate(pp_file, out_pp_file, language, arch_triplet, cflags):
     args.extend(cflags)
     args.extend(["-load", plugin_path, "-plugin", "trace-instrument"])
     try:
-        output = subprocess.check_output(args, stderr = subprocess.STDOUT)
-    except subprocess.CalledProcessError, e:
+        output = subprocess32.check_output(args, stderr = subprocess32.STDOUT)
+    except subprocess32.CalledProcessError, e:
         print 'clang returned', e.returncode
         print 'Args:', ' '.join(args)
         print 'Output:', e.output
@@ -53,7 +60,7 @@ class UnsupportedTarget(Exception):
     pass
 
 def get_arch_triplet(compiler):
-    output = subprocess.check_output([compiler, '-v'], stderr = subprocess.STDOUT).split('\n')
+    output = subprocess32.check_output([compiler, '-v'], stderr = subprocess32.STDOUT).split('\n')
     for line in output:
         if line.startswith('Target:'):
             target = line.split(':')[1].strip()
@@ -70,7 +77,7 @@ def maybe_translate(pp_file, out_pp_file, language, arch_triplet, cflags):
     try:
         return translate(pp_file, out_pp_file, language, arch_triplet, cflags)
     except Error, e:
-        print e.args[0]
+        print "ERROR!",e.args[0]
         return -1
 
 
@@ -90,7 +97,8 @@ def handle_dependency_option(args, c_index, o_index, o_file):
     new_args = args[::]
     uses_dependency_option = False
     arg_mapping = {'-MMD' : '-MM',
-                   '-MD'  : '-M'}
+                   #'-MD'  : '-M'
+    }
     for index, arg in enumerate(new_args):
         if arg in arg_mapping.keys():
             del args[index]
@@ -106,6 +114,10 @@ def handle_dependency_option(args, c_index, o_index, o_file):
     
 def main():
     args = sys.argv[1:]
+
+    args.insert(0,"g++")
+    print "Start of CCWRAP"," ".join(args)
+        
     if '-c' not in args:
         return ldmodwrap_main()
 
@@ -116,7 +128,7 @@ def main():
             break
 
     if c_index == -1:
-        ret = spawn(args)
+        ret = spawn(args)        
         return ret
     c_file = args[c_index]
 
@@ -179,7 +191,9 @@ def main():
         if os.getenv("TRACE_NO_UNLINK_PPFILE", "") == "":
             # Delete the pp.i file only if the clang invocation was successful
             if clang_ret == 0:
-               os.unlink(out_pp_file)
-
+                if os.path.exists(out_pp_file):
+                    os.unlink(out_pp_file)
+                else:
+                    print "File does not exist",out_pp_file
 if __name__ == "__main__":
     sys.exit(main())

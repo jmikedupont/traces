@@ -11,6 +11,7 @@ trace_dumper/Makefile
 trace_reader/Makefile
 libtrace/Makefile
 interactive_reader/Makefile
+trace_instrumentor/Makefile
 ])
 AC_OUTPUT
 

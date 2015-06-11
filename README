@@ -8,7 +8,7 @@ Requirements :
 * gcc
 * clang
 * python-ctypeslib for  h2xml.py 
-
+* automake, autoconf, autoheaders, libtool
 
 History
 -------
@@ -49,7 +49,7 @@ Quick start
 -----------
 
 traces has the following dependencies:
-    clang 3.1
+    clang 3.5
     Python 2.7 or above
     python-ctypeslib (for the interactive reader)
     python-urwid (for the interactive reader)
