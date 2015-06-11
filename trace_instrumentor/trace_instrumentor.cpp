@@ -2591,9 +2591,9 @@ private:
     StringRef InFile;
     CompilerInstance *CI;
 protected:
-    ASTConsumer *CreateASTConsumer(CompilerInstance &CI, llvm::StringRef InFile) {
+  virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance& CI, llvm::StringRef InFile) {
         if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile, "cpp"))
-            return new PreCompilationLogsConsumer(InFile, OS, CI);
+          return  std::unique_ptr<clang::ASTConsumer> (new PreCompilationLogsConsumer(InFile, OS, CI));
         else {
             return NULL;
         }
