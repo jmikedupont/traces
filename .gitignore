@@ -50,3 +50,6 @@ lib*.a
 /trace_instrumentor/trace_instrumentor.lo
 /trace_reader/.deps/simple_trace_reader.Po
 /trace_reader/Makefile.in
+/*/*.i
+/*/*.ii
+/*/*.s

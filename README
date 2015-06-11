@@ -10,6 +10,13 @@ Requirements :
 * python-ctypeslib for  h2xml.py 
 * automake, autoconf, autoheaders, libtool
 
+
+
+Configure on debian with llvm 3.7
+    ./autogen.sh
+    ./configure --with-llvm-version=3.7 --with-llvm-prefix=/usr/
+    
+
 History
 -------
 Is is written by Yotam Rubin <yotamrubin@gmail.com> and sponsored by infinidat.
