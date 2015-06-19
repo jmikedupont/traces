@@ -10,7 +10,7 @@ AC_ARG_WITH([llvm-prefix],
     [AS_HELP_STRING([--with-llvm-prefix],
         [Prefix for LLVM installations in non-standard locations])],
     [llvm_prefix="$withval"],
-    [llvm_prefix=""])
+    [llvm_prefix="/usr/local"])
 
 AC_ARG_WITH([llvm-version],
     [AS_HELP_STRING([--with-llvm-version],
